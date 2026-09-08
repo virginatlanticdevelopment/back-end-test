@@ -3,7 +3,9 @@ package com.virginholidays.backend.test.resource;
 import com.virginholidays.backend.test.api.Flight;
 import com.virginholidays.backend.test.service.FlightInfoService;
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import javax.validation.constraints.NotEmpty;
 import static org.springframework.http.CacheControl.noCache;
@@ -37,16 +39,26 @@ public class FlightInfoResource {
     /**
      * Resource method for returning flight results
      *
-     * @param date the chosen date
+     * @param date the chosen date, in ISO-8601 format (yyyy-MM-dd), e.g. 2026-09-05
      * @return flights for the day of the chosen date
      */
     @RequestMapping(method = RequestMethod.GET, path = "/{date}/results")
     public CompletionStage<ResponseEntity<?>> getResults(@PathVariable("date") @NotEmpty String date) {
 
-        return flightInfoService.findFlightByDate(LocalDate.now()).thenApply(maybeResults -> {
+        // parse the supplied date - do not default to LocalDate.now()
+        LocalDate outboundDate;
+
+        try {
+            outboundDate = LocalDate.parse(date);
+        } catch (DateTimeParseException e) {
+            return CompletableFuture.completedFuture(
+                    status(HttpStatus.BAD_REQUEST).cacheControl(noCache()).build());
+        }
+
+        return flightInfoService.findFlightByDate(outboundDate).thenApply(maybeResults -> {
 
             // no results, no content
-            if (maybeResults.isEmpty()) {
+            if (maybeResults.isEmpty() || maybeResults.get().isEmpty()) {
                 return status(HttpStatus.NO_CONTENT).cacheControl(noCache()).build();
             }
 
