@@ -30,7 +30,16 @@ public class FlightInfoServiceImpl implements FlightInfoService {
     @Override
     public CompletionStage<Optional<List<Flight>>> findFlightByDate(LocalDate outboundDate) {
 
-        // FIXME - applicant to complete
-        return flightInfoRepository.findAll();
+        return flightInfoRepository.findAll()
+                .thenApply(maybeFlights ->
+                        maybeFlights.map(flights ->
+                                flights.stream()
+                                        .filter(flight ->
+                                                flight.days()
+                                                        .contains(outboundDate.getDayOfWeek()))
+                                        .sorted(Comparator.comparing(Flight::departureTime))
+                                        .toList()
+                        )
+                );
     }
 }
